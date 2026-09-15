@@ -6,7 +6,9 @@
 ## 무엇을 할 수 있나
 
 - **지도 클릭 → 동 선택**: 네이버 지도에서 동 이름을 친 것처럼, 클릭한 자리의 행정동 경계가 그려집니다.
-- **동 이름 검색**: `종암동`, `성북구 종암`, 초성 `ㅈㅇㄷ` 모두 찾습니다.
+- **이름 검색**: `종암동`, `성북구 종암`, 초성 `ㅈㅇㄷ` 모두 찾습니다.
+  `은평뉴타운`처럼 행정동이 아닌 곳은 **지도에서 찾기**(OpenStreetMap)에 나오고, 누르면
+  그 자리로 이동해 단지로 등록할 수 있습니다.
 - **5단계 색깔 표시**: 관심 → 공부중 → 공부완료 → 임장예정 → 임장완료. 단계마다 지도 색이 달라집니다.
 - **메모·태그·관심도·임장 날짜**: 동마다, 단지마다 따로 기록합니다.
 - **아파트 단지 단위 기록**: 지도를 찍어 단지를 추가하거나, 동 상세에서 *주변 단지 불러오기*로
@@ -83,6 +85,7 @@ src/
   search.js             동/단지 통합 검색 (초성 지원)
   store.js              localStorage 기록 저장소
   overpass.js           OpenStreetMap 단지 조회 (선택 기능)
+  geocode.js            장소 이름 검색 (Nominatim, 선택 기능)
   util.js               DOM·한글·포맷 도우미
 data/dong-*.json        서울·경기·인천 행정동 경계 (총 2.7MB)
 vercel.json             정적 배포 설정 (캐시 헤더)
@@ -114,10 +117,13 @@ python3 scripts/build_data.py           # 원본을 받아 data/dong-*.json 을 
 - 행정동 경계: [vuski/admdongkor](https://github.com/vuski/admdongkor) (통계청 행정동 경계, 2025-04-01 기준)
 - 지도 배경: [OpenStreetMap](https://www.openstreetmap.org/copyright) contributors / 위성 영상 Esri, Maxar, Earthstar Geographics
 - 아파트 단지 조회: [Overpass API](https://overpass-api.de/) / OpenStreetMap
+- 장소 이름 검색: [Nominatim](https://nominatim.openstreetmap.org/) / OpenStreetMap
 - 지도 라이브러리: [Leaflet](https://leafletjs.com/) 1.9.4
 
 ## 알아 둘 점
 
+- 행정동 경계 데이터에는 '은평뉴타운' 같은 택지지구나 단지 이름이 없습니다. 그래서 그런 이름은
+  Nominatim으로 좌표를 찾은 뒤 단지 핀으로 기록하는 방식입니다.
 - 경계는 **법정동이 아니라 행정동** 기준입니다. 예를 들어 법정동 '종암동'과 행정동 '종암동'의
   범위가 정확히 같지는 않을 수 있습니다.
 - *주변 단지 불러오기*는 OpenStreetMap에 등록된 단지만 찾습니다. 빠진 단지는 지도를 직접 찍어

@@ -2,6 +2,7 @@ import { STATUSES, statusColor, statusLabel } from './config.js';
 import { el, $, $$, clear, debounce, relativeTime, downloadJSON } from './util.js';
 import { buildSearch } from './search.js';
 import { fetchApartments } from './overpass.js';
+import { searchPlaces } from './geocode.js';
 
 const ALL_STATUS_IDS = STATUSES.map((s) => s.id);
 
@@ -206,19 +207,44 @@ export class UI {
     const input = this.nodes.searchInput;
     const results = this.nodes.searchResults;
 
+    this.placeState = { query: '', status: 'idle', items: [] };
+
     const run = debounce(() => {
       const query = input.value;
       this.nodes.searchClear.hidden = !query;
-      if (!query.trim()) { results.hidden = true; return; }
-      const hits = this.search(query);
-      clear(results);
-      if (!hits.length) {
-        results.append(el('li.search-empty', { text: '검색 결과가 없어요' }));
-      } else {
-        for (const hit of hits) results.append(this.#searchRow(hit));
+      if (!query.trim()) {
+        results.hidden = true;
+        this.placeState = { query: '', status: 'idle', items: [] };
+        this.placeSearch?.cancel();
+        return;
       }
-      results.hidden = false;
+      this.#renderSearchResults(query);
+      this.placeSearch(query);
     }, 140);
+
+    // 장소 검색은 남의 서버를 쓰므로 더 느긋하게, 그리고 이전 요청은 취소하며 보낸다.
+    this.placeSearch = debounce(async (query) => {
+      const trimmed = query.trim();
+      if (trimmed.length < 2) {
+        this.placeState = { query: trimmed, status: 'idle', items: [] };
+        this.#renderSearchResults(query);
+        return;
+      }
+      this.placeAbort?.abort();
+      this.placeAbort = new AbortController();
+      this.placeState = { query: trimmed, status: 'loading', items: [] };
+      this.#renderSearchResults(query);
+      try {
+        const items = await searchPlaces(trimmed, { signal: this.placeAbort.signal });
+        if (input.value.trim() !== trimmed) return;   // 그 사이 다른 걸 쳤다면 버린다
+        this.placeState = { query: trimmed, status: 'done', items };
+      } catch (err) {
+        if (err.name === 'AbortError') return;
+        console.warn('장소 검색 실패', err);
+        this.placeState = { query: trimmed, status: 'error', items: [] };
+      }
+      if (input.value.trim() === trimmed) this.#renderSearchResults(input.value);
+    }, 550);
 
     input.addEventListener('input', run);
     input.addEventListener('focus', () => {
@@ -243,6 +269,35 @@ export class UI {
     });
   }
 
+  #renderSearchResults(query) {
+    const results = clear(this.nodes.searchResults);
+    const hits = query.trim() ? this.search(query) : [];
+    for (const hit of hits) results.append(this.#searchRow(hit));
+
+    const place = this.placeState ?? { status: 'idle', items: [] };
+    if (place.status !== 'idle') {
+      results.append(el('li.search-section', {
+        text: hits.length ? '지도에서 찾기 · OpenStreetMap' : '지도에서 찾기 · OpenStreetMap',
+      }));
+    }
+    if (place.status === 'loading') {
+      results.append(el('li.search-note', { text: '장소를 찾는 중…' }));
+    } else if (place.status === 'error') {
+      results.append(el('li.search-note', { text: '장소 검색에 연결하지 못했어요.' }));
+    } else if (place.status === 'done') {
+      if (place.items.length) {
+        for (const item of place.items) results.append(this.#placeRow(item));
+      } else {
+        results.append(el('li.search-note', { text: '지도에서도 찾지 못했어요.' }));
+      }
+    }
+
+    if (!results.childElementCount) {
+      results.append(el('li.search-empty', { text: '검색 결과가 없어요' }));
+    }
+    results.hidden = false;
+  }
+
   #searchRow(hit) {
     const color = hit.record?.status ? statusColor(hit.record.status) : 'transparent';
     return el('li.search-row', {
@@ -261,6 +316,35 @@ export class UI {
       ]),
       hit.kind === 'complex' ? el('span.row-kind', { text: '단지' }) : null,
     ]);
+  }
+
+  #placeRow(place) {
+    return el('li.search-row.place-row', {
+      role: 'option',
+      onclick: () => {
+        this.nodes.searchResults.hidden = true;
+        this.nodes.searchInput.blur();
+        this.#goToPlace(place);
+      },
+    }, [
+      el('i.search-mark.place-mark', { text: '📍' }),
+      el('div.search-text', {}, [
+        el('b', { text: place.name }),
+        el('span', { text: place.detail || '지도에서 찾은 장소' }),
+      ]),
+    ]);
+  }
+
+  /** 장소로 이동해 그 자리의 동을 열고, 단지로 등록할 수 있게 제안한다. */
+  #goToPlace(place) {
+    const dong = this.dongIndex.findAt(place.lng, place.lat);
+    this.map.panTo(place.lat, place.lng, 16);
+    if (!dong) {
+      this.toast(`${place.name} 위치로 이동했어요. (서울·경기·인천 밖이라 동 기록은 안 돼요)`);
+      return;
+    }
+    this.pendingPlace = { ...place, dongCode: dong.code };
+    this.selectDong(dong);
   }
 
   // ─────────────────────────────────────────── 선택 / 상세
@@ -288,6 +372,7 @@ export class UI {
 
   showList() {
     this.current = null;
+    this.pendingPlace = null;
     this.map.clearSelection();
     this.nodes.viewDetail.hidden = true;
     this.nodes.viewList.hidden = false;
@@ -378,8 +463,36 @@ export class UI {
 
     const complexes = this.store.complexesInDong(dong.code);
 
+    const place = this.pendingPlace?.dongCode === dong.code ? this.pendingPlace : null;
+
     const body = el('div.detail', {}, [
       this.#backButton('내 기록 목록'),
+
+      place ? el('div.place-callout', {}, [
+        el('div.place-callout-text', {}, [
+          el('b', { text: place.name }),
+          el('span', { text: '지도에서 찾은 장소예요. 단지로 등록해 둘까요?' }),
+        ]),
+        el('button.mini-btn.is-primary', {
+          onclick: () => {
+            const cx = this.store.addComplex({
+              name: place.name,
+              lat: place.lat,
+              lng: place.lng,
+              dongCode: dong.code,
+              status: 'interest',
+            });
+            this.pendingPlace = null;
+            this.selectComplex(cx, { zoom: true });
+            this.toast(`${cx.name}을(를) 단지로 추가했어요.`, 'good');
+          },
+        }, '단지로 추가'),
+        el('button.icon-btn.place-dismiss', {
+          'aria-label': '닫기',
+          onclick: () => { this.pendingPlace = null; this.#renderDongDetail(dong); },
+        }, '✕'),
+      ]) : null,
+
       el('div.detail-head', {}, [
         el('span.detail-eyebrow', { text: `${dong.sido} ${dong.sgg}` }),
         el('h2.detail-title', { text: dong.name }),
