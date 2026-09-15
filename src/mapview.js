@@ -68,6 +68,18 @@ function tileOptions(cfg) {
   return { ...base, maxNativeZoom: cfg.nativeMax - 1, zoomOffset: 1, tileSize: 128 };
 }
 
+/**
+ * 화면이 뭉개지지 않는 선에서의 최대 배율.
+ *
+ * @2x가 없는 제공처는 '한 단계 높은 줌을 절반 크기로' 그려 밀도를 맞추는데,
+ * 타일이 있는 마지막 줌(OpenStreetMap z19)에서는 더 끌어올 게 없어 밀도가 1배로 떨어진다.
+ * 고해상도 화면에서 1배는 픽셀이 사각형으로 뭉쳐 보인다. 그래서 한 단계 덜 확대되게 막는다.
+ * 어차피 같은 z19 타일을 보는 것이라 보이는 정보는 같고, 화면에 더 넓게·또렷하게 나온다.
+ */
+function maxUsableZoom(cfg) {
+  return (cfg.retina === 'zoom' && L.Browser.retina) ? cfg.nativeMax - 1 : cfg.nativeMax;
+}
+
 function tileUrl(cfg, apiKey) {
   return cfg.provider === 'stadia' && apiKey
     ? `${cfg.url}?api_key=${encodeURIComponent(apiKey)}`
@@ -143,13 +155,10 @@ export class MapView {
     this.#watchTileFailures(layers);
   }
 
-  /**
-   * 배경마다 타일이 있는 최대 줌이 다르다(OpenStreetMap·위성은 19, Stadia는 20).
-   * 그 너머로 확대하면 없는 타일을 억지로 늘려 그려서 지도가 뭉개진다. 아예 막는다.
-   */
+  /** 배경마다 또렷하게 나오는 최대 배율이 다르므로(maxUsableZoom), 고를 때마다 맞춘다. */
   #limitZoomTo(layer) {
-    const nativeMax = layer?.config?.nativeMax ?? MAP_MAX_ZOOM;
-    if (this.map.getMaxZoom() !== nativeMax) this.map.setMaxZoom(nativeMax);
+    const limit = layer?.config ? maxUsableZoom(layer.config) : MAP_MAX_ZOOM;
+    if (this.map.getMaxZoom() !== limit) this.map.setMaxZoom(limit);
   }
 
   /**
