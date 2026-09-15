@@ -122,7 +122,20 @@ export class UI {
 
     $('#btn-add-complex').addEventListener('click', () => this.toggleAddMode());
 
-    $('#btn-help').addEventListener('click', () => $('#help-dialog').showModal());
+    $('#btn-help').addEventListener('click', () => {
+      const field = $('#stadia-key');
+      if (field) field.value = this.store.setting('stadiaKey', '');
+      $('#help-dialog').showModal();
+    });
+
+    $('#stadia-save')?.addEventListener('click', () => {
+      const key = ($('#stadia-key')?.value ?? '').trim();
+      this.store.setSetting('stadiaKey', key);
+      // 타일 레이어는 지도를 만들 때 한 번 짜이므로, 적용하려면 다시 읽어야 한다.
+      this.store.setSetting('baseLayer', key ? '깔끔' : '기본');
+      this.toast(key ? '키를 저장했어요. 새로고침합니다…' : '키를 지웠어요. 새로고침합니다…', 'good');
+      setTimeout(() => location.reload(), 700);
+    });
 
     $('#btn-export').addEventListener('click', () => {
       const stamp = new Date().toISOString().slice(0, 10);

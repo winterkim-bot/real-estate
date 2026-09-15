@@ -1,35 +1,76 @@
 import { MAP_DEFAULTS, statusColor } from './config.js';
 import { toLatLngs, toLatLngBounds } from './geo.js';
 
-const BASE_LAYERS = {
-  // 모두 API 키가 필요 없는 타일이다. CARTO 베이스맵은 키를 요구하도록 바뀌어 쓰지 않는다.
-  '기본': {
-    url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-  },
-  '위성': {
-    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-    attribution: 'Imagery &copy; Esri, Maxar, Earthstar Geographics',
-  },
-};
+const OSM_ATTR = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
+const STADIA_ATTR = '&copy; <a href="https://stadiamaps.com/">Stadia Maps</a> '
+  + '&copy; <a href="https://openmaptiles.org/">OpenMapTiles</a> ' + OSM_ATTR;
 
-const MAX_TILE_ZOOM = 19;   // 두 제공처 모두 z19까지 있다
+export const MAP_MAX_ZOOM = 20;
 
 /**
- * 고해상도 화면(아이폰 등)에서는 한 단계 높은 줌의 타일을 받아 절반 크기로 그린다.
- * 같은 화면을 두 배 밀도로 채우게 되므로 글자와 선이 또렷해진다.
- * 타일 제공처가 @2x 이미지를 주지 않아도 되는 방식이라 키 없는 서버에도 그대로 쓸 수 있다.
+ * 배경 지도 후보.
+ *
+ * retina 항목은 고해상도 화면을 어떻게 감당하는지를 뜻한다.
+ *  - 'url'  : 제공처가 @2x 이미지를 준다 ({r} 자리에 붙는다). 가장 깨끗하다.
+ *  - 'zoom' : @2x가 없으므로 한 단계 높은 줌의 타일을 절반 크기로 그려 밀도를 맞춘다.
+ *
+ * Stadia는 키를 넣거나 배포 도메인을 등록해야 보인다. 그래서 기본값은 키가 필요 없는
+ * OpenStreetMap이고, 안 뜨면 자동으로 되돌린다.
+ */
+const BASE_LAYERS = [
+  {
+    name: '깔끔',
+    url: 'https://tiles.stadiamaps.com/tiles/alidade_smooth/{z}/{x}/{y}{r}.png',
+    attribution: STADIA_ATTR,
+    nativeMax: 20,
+    retina: 'url',
+    provider: 'stadia',
+  },
+  {
+    name: '선명',
+    url: 'https://tiles.stadiamaps.com/tiles/osm_bright/{z}/{x}/{y}{r}.png',
+    attribution: STADIA_ATTR,
+    nativeMax: 20,
+    retina: 'url',
+    provider: 'stadia',
+  },
+  {
+    name: '기본',
+    url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+    attribution: OSM_ATTR,
+    nativeMax: 19,
+    retina: 'zoom',
+    provider: 'osm',
+  },
+  {
+    name: '위성',
+    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+    attribution: 'Imagery &copy; Esri, Maxar, Earthstar Geographics',
+    nativeMax: 19,
+    retina: 'zoom',
+    provider: 'esri',
+  },
+];
+
+const FALLBACK_LAYER = '기본';
+
+/**
+ * 고해상도 화면에서 또렷하게 나오도록 타일 옵션을 짠다.
+ * maxZoom은 '레이어가 보이는 한계', maxNativeZoom은 '실제로 받아오는 타일의 한계'다.
+ * 둘을 갈라 둬야 최대 배율에서 있지도 않은 타일을 부르거나 레이어가 통째로 사라지지 않는다.
  */
 function tileOptions(cfg) {
-  const retina = L.Browser.retina;
-  return {
-    attribution: cfg.attribution,
-    maxZoom: MAX_TILE_ZOOM,
-    // 실제로 받아올 타일의 줌. 레티나에선 여기에 zoomOffset이 더해져 z19가 된다.
-    maxNativeZoom: retina ? MAX_TILE_ZOOM - 1 : MAX_TILE_ZOOM,
-    zoomOffset: retina ? 1 : 0,
-    tileSize: retina ? 128 : 256,
-  };
+  const base = { attribution: cfg.attribution, maxZoom: MAP_MAX_ZOOM };
+  if (cfg.retina === 'url' || !L.Browser.retina) {
+    return { ...base, maxNativeZoom: cfg.nativeMax };
+  }
+  return { ...base, maxNativeZoom: cfg.nativeMax - 1, zoomOffset: 1, tileSize: 128 };
+}
+
+function tileUrl(cfg, apiKey) {
+  return cfg.provider === 'stadia' && apiKey
+    ? `${cfg.url}?api_key=${encodeURIComponent(apiKey)}`
+    : cfg.url;
 }
 
 const LABEL_MIN_ZOOM = 11;   // 이보다 멀리서 보면 동 이름표를 숨긴다
@@ -38,12 +79,13 @@ const CX_HALO_RADIUS_M = 130;   // 단지 표시 반경 (실제 경계가 아니
 
 /** Leaflet 지도와 모든 레이어를 관리한다. UI 로직은 담지 않고 콜백으로 넘긴다. */
 export class MapView {
-  constructor(containerId, { dongIndex, store, onDongSelect, onComplexSelect, onComplexDrop }) {
+  constructor(containerId, { dongIndex, store, onDongSelect, onComplexSelect, onComplexDrop, onTileProblem }) {
     this.dongIndex = dongIndex;
     this.store = store;
     this.onDongSelect = onDongSelect;
     this.onComplexSelect = onComplexSelect;
     this.onComplexDrop = onComplexDrop;
+    this.onTileProblem = onTileProblem;
 
     this.selectedDongCode = null;
     this.selectedComplexId = null;
@@ -56,18 +98,12 @@ export class MapView {
       center: MAP_DEFAULTS.center,
       zoom: MAP_DEFAULTS.zoom,
       minZoom: MAP_DEFAULTS.minZoom,
-      maxZoom: MAP_DEFAULTS.maxZoom,
+      maxZoom: MAP_MAX_ZOOM,
       zoomControl: false,
       preferCanvas: false,
     });
 
-    const layers = {};
-    Object.entries(BASE_LAYERS).forEach(([name, cfg], i) => {
-      const layer = L.tileLayer(cfg.url, tileOptions(cfg));
-      layers[name] = layer;
-      if (i === 0) layer.addTo(this.map);
-    });
-    L.control.layers(layers, null, { position: 'topright' }).addTo(this.map);
+    this.#buildBaseLayers();
     L.control.zoom({ position: 'bottomright' }).addTo(this.map);
     L.control.scale({ imperial: false, position: 'bottomleft' }).addTo(this.map);
 
@@ -79,6 +115,49 @@ export class MapView {
     this.complexLayer = L.layerGroup().addTo(this.map);
 
     this.#bindEvents();
+  }
+
+  /** 배경 지도 레이어를 만들고, 마지막에 고른 것을 기억해 둔다. */
+  #buildBaseLayers() {
+    const apiKey = this.store.setting('stadiaKey', '').trim();
+    const layers = {};
+
+    for (const cfg of BASE_LAYERS) {
+      layers[cfg.name] = L.tileLayer(tileUrl(cfg, apiKey), tileOptions(cfg));
+      layers[cfg.name].config = cfg;
+    }
+
+    // 저장된 선택이 유효하지 않으면 키 없이도 뜨는 쪽으로 돌아간다.
+    let chosen = this.store.setting('baseLayer', FALLBACK_LAYER);
+    if (!layers[chosen]) chosen = FALLBACK_LAYER;
+    layers[chosen].addTo(this.map);
+
+    L.control.layers(layers, null, { position: 'topright' }).addTo(this.map);
+    this.map.on('baselayerchange', (ev) => this.store.setSetting('baseLayer', ev.name));
+
+    this.#watchTileFailures(layers);
+  }
+
+  /**
+   * Stadia는 키나 도메인 등록이 없으면 타일을 거절한다. 그럴 때 빈 지도를 보여주는 대신
+   * 키 없이도 되는 배경으로 되돌리고 왜 그런지 알린다.
+   */
+  #watchTileFailures(layers) {
+    const fallback = layers[FALLBACK_LAYER];
+    for (const layer of Object.values(layers)) {
+      if (layer.config.provider !== 'stadia') continue;
+      let failures = 0;
+      layer.on('tileerror', () => {
+        failures += 1;
+        if (failures < 4 || !this.map.hasLayer(layer)) return;
+        failures = 0;
+        this.map.removeLayer(layer);
+        fallback.addTo(this.map);
+        this.store.setSetting('baseLayer', FALLBACK_LAYER);
+        this.onTileProblem?.(layer.config.name);
+      });
+      layer.on('load', () => { failures = 0; });
+    }
   }
 
   #bindEvents() {

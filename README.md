@@ -95,12 +95,33 @@ scripts/check-syntax.mjs 모듈 문법 검사
 vendor/                 Leaflet 1.9.4 (BSD-2-Clause)
 ```
 
+### 배경 지도 바꾸기 (선택)
+
+기본 배경은 키가 필요 없는 OpenStreetMap입니다. 더 깔끔한 배경을 쓰려면
+[Stadia Maps](https://client.stadiamaps.com/signup/)에 무료로 가입한 뒤 **둘 중 하나**만 하면 됩니다.
+
+1. 대시보드에서 **Manage Properties → 도메인 등록** (예: `내프로젝트.vercel.app`).
+   브라우저가 보내는 Referer로 인증되므로 키를 코드에 넣을 필요가 없습니다. 이쪽을 권합니다.
+2. 또는 **API 키**를 받아 앱의 *도움말 → 지도 배경 바꾸기*에 붙여넣기.
+   (키는 이 브라우저에만 저장됩니다. 클라이언트 키라 어차피 공개되는 값이니, Stadia 대시보드에서
+   도메인 제한을 함께 걸어 두세요.)
+
+그러면 오른쪽 위 레이어 아이콘에 **깔끔**(alidade smooth)과 **선명**(osm bright)이 생깁니다.
+Stadia는 진짜 @2x 타일을 주기 때문에 고해상도 화면에서 가장 또렷합니다.
+
+등록이나 키가 없어 타일이 거절당하면, 앱이 알아서 기본 배경으로 되돌리고 이유를 알려 줍니다.
+
 ### 고해상도 화면
 
-타일 제공처가 @2x 이미지를 주지 않아도 또렷하게 보이도록, 고해상도 화면에서는
-**한 단계 높은 줌의 타일을 절반 크기로** 그립니다(`src/mapview.js`의 `tileOptions`).
-같은 영역을 두 배 밀도로 채우는 방식이라 키가 필요한 타일 서버로 갈아타지 않아도 됩니다.
-대신 타일 요청 수는 네 배가 됩니다.
+제공처에 따라 두 가지 방식을 씁니다(`src/mapview.js`의 `tileOptions`).
+
+- **@2x 이미지를 주는 곳**(Stadia): `{r}` 자리에 `@2x`가 붙은 타일을 그대로 받습니다.
+- **안 주는 곳**(OpenStreetMap, Esri): 한 단계 높은 줌의 타일을 절반 크기로 그려 밀도를 맞춥니다.
+  키가 필요한 서버로 갈아타지 않아도 되는 대신, 타일 요청 수가 네 배가 됩니다.
+
+`maxZoom`(레이어가 보이는 한계)과 `maxNativeZoom`(실제로 받아오는 타일의 한계)을 갈라 두었습니다.
+Leaflet의 `detectRetina`는 `maxZoom`을 말없이 한 단계 깎아서, 최대 배율에서 레이어가 통째로
+사라질 수 있습니다.
 
 ### 성능에 대한 메모
 
@@ -123,7 +144,7 @@ python3 scripts/build_data.py           # 원본을 받아 data/dong-*.json 을 
 ## 데이터 출처
 
 - 행정동 경계: [vuski/admdongkor](https://github.com/vuski/admdongkor) (통계청 행정동 경계, 2025-04-01 기준)
-- 지도 배경: [OpenStreetMap](https://www.openstreetmap.org/copyright) contributors / 위성 영상 Esri, Maxar, Earthstar Geographics
+- 지도 배경: [OpenStreetMap](https://www.openstreetmap.org/copyright) contributors / 위성 영상 Esri, Maxar, Earthstar Geographics / (선택) [Stadia Maps](https://stadiamaps.com/) · [OpenMapTiles](https://openmaptiles.org/)
 - 아파트 단지 조회: [Overpass API](https://overpass-api.de/) / OpenStreetMap
 - 장소 이름 검색: [Nominatim](https://nominatim.openstreetmap.org/) / OpenStreetMap
 - 지도 라이브러리: [Leaflet](https://leafletjs.com/) 1.9.4

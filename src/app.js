@@ -13,12 +13,24 @@ async function main() {
   const dongIndex = new DongIndex();
   let ui = null;
 
+  // 경계 데이터를 읽는 동안에도 지도는 이미 타일을 받는다. 그 사이에 생긴 알림은
+  // 아직 UI가 없어 띄울 곳이 없으므로, 준비되면 내보내려고 들고 있는다.
+  let pendingNotice = null;
+  const notify = (message, tone) => {
+    if (ui) ui.toast(message, tone);
+    else pendingNotice = [message, tone];
+  };
+
   const mapView = new MapView('map', {
     dongIndex,
     store,
     onDongSelect: (dong) => ui?.selectDong(dong),
     onComplexSelect: (cx) => ui?.selectComplex(cx),
     onComplexDrop: (drop) => ui?.handleComplexDrop(drop),
+    onTileProblem: (name) => notify(
+      `'${name}' 배경을 불러오지 못해 기본 지도로 돌아갔어요. 도움말에서 Stadia 설정을 확인해 주세요.`,
+      'bad',
+    ),
   });
 
   // 마지막으로 보던 위치를 기억해 둔다.
@@ -46,6 +58,11 @@ async function main() {
   ui.init();
 
   trackKeyboardInset();
+
+  if (pendingNotice) {
+    ui.toast(...pendingNotice);
+    pendingNotice = null;
+  }
 
   $('#btn-locate')?.addEventListener('click', () => {
     mapView.locateMe((message) => ui.toast(message, 'bad'));

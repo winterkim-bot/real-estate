@@ -100,6 +100,24 @@
         것이고, 실제 단지 경계는 아니에요.</li>
     <li>기록은 이 브라우저에만 저장됩니다. <b>내보내기</b>로 JSON 백업을 남겨 두세요.</li>
   </ol>
+  <section class="dialog-section">
+    <h3>지도 배경 바꾸기 <span class="opt">선택</span></h3>
+    <p>기본 배경은 키가 필요 없는 OpenStreetMap입니다. 더 깔끔한 배경을 쓰려면
+       <a href="https://client.stadiamaps.com/signup/" target="_blank" rel="noopener">Stadia Maps</a>에
+       무료로 가입한 뒤, <b>둘 중 하나</b>만 하면 됩니다.</p>
+    <ol class="tight">
+      <li>대시보드에 이 사이트 <b>도메인을 등록</b> — 키를 넣을 필요가 없습니다.</li>
+      <li>또는 <b>API 키</b>를 받아 아래에 붙여넣기.</li>
+    </ol>
+    <div class="key-row">
+      <input id="stadia-key" type="text" autocomplete="off" spellcheck="false"
+             placeholder="Stadia Maps API 키 (선택)" aria-label="Stadia Maps API 키">
+      <button id="stadia-save" class="mini-btn is-primary" type="button">저장</button>
+    </div>
+    <p class="dialog-note">저장하면 새로고침되고, 오른쪽 위 레이어 아이콘에서 <b>깔끔</b> ·
+       <b>선명</b>을 고를 수 있습니다. 키가 없거나 도메인이 등록되지 않으면 자동으로 기본 배경으로 돌아갑니다.</p>
+  </section>
+
   <p class="dialog-note">경계 데이터: 통계청 행정동 경계 (vuski/admdongkor, 2025-04-01 기준)</p>
   <form method="dialog"><button class="primary-btn">닫기</button></form>
 </dialog>
