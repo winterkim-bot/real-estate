@@ -1,0 +1,5 @@
+# 경계 데이터 원본(34MB). scripts/build_data.py 가 필요할 때 다시 내려받는다.
+data/_source.geojson
+*.tgz
+.DS_Store
+node_modules/
