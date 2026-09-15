@@ -54,7 +54,7 @@ npx vercel --prod
 python3 -m http.server 8080   # → http://localhost:8080
 ```
 
-> 지도 배경 타일을 OpenStreetMap/CARTO에서 받아오므로 인터넷 연결이 필요합니다.
+> 지도 배경 타일을 OpenStreetMap에서 받아오므로 인터넷 연결이 필요합니다.
 > 지도 라이브러리(Leaflet)와 경계 데이터는 저장소 안에 들어 있습니다.
 
 ## 기록은 어디에 저장되나
@@ -112,7 +112,7 @@ python3 scripts/build_data.py           # 원본을 받아 data/dong-*.json 을 
 ## 데이터 출처
 
 - 행정동 경계: [vuski/admdongkor](https://github.com/vuski/admdongkor) (통계청 행정동 경계, 2025-04-01 기준)
-- 지도 배경: [OpenStreetMap](https://www.openstreetmap.org/copyright) contributors, 타일 [CARTO](https://carto.com/)
+- 지도 배경: [OpenStreetMap](https://www.openstreetmap.org/copyright) contributors / 위성 영상 Esri, Maxar, Earthstar Geographics
 - 아파트 단지 조회: [Overpass API](https://overpass-api.de/) / OpenStreetMap
 - 지도 라이브러리: [Leaflet](https://leafletjs.com/) 1.9.4
 

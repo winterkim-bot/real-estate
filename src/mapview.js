@@ -2,19 +2,15 @@ import { MAP_DEFAULTS, statusColor } from './config.js';
 import { toLatLngs, toLatLngBounds } from './geo.js';
 
 const BASE_LAYERS = {
+  // 모두 API 키가 필요 없는 타일이다. CARTO 베이스맵은 키를 요구하도록 바뀌어 쓰지 않는다.
   '기본': {
-    url: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
-    attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
-    maxZoom: 19,
-  },
-  '심플': {
-    url: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
-    attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
-    maxZoom: 19,
-  },
-  '상세': {
     url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-    attribution: '&copy; OpenStreetMap contributors',
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    maxZoom: 19,
+  },
+  '위성': {
+    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+    attribution: 'Imagery &copy; Esri, Maxar, Earthstar Geographics',
     maxZoom: 19,
   },
 };
