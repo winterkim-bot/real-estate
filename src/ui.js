@@ -1,4 +1,4 @@
-import { STATUSES, statusColor, statusLabel } from './config.js';
+import { STATUSES, statusColor, statusLabel, APP_VERSION } from './config.js';
 import { el, $, $$, clear, debounce, relativeTime, downloadJSON } from './util.js';
 import { buildSearch } from './search.js';
 import { fetchApartments } from './overpass.js';
@@ -125,6 +125,8 @@ export class UI {
     $('#btn-help').addEventListener('click', () => {
       const field = $('#stadia-key');
       if (field) field.value = this.store.setting('stadiaKey', '');
+      const stamp = $('#app-version');
+      if (stamp) stamp.textContent = APP_VERSION;
       $('#help-dialog').showModal();
     });
 

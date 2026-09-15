@@ -33,3 +33,6 @@ export const MAP_DEFAULTS = {
 };
 
 export const STORAGE_KEY = 'imjang-note:v1';
+
+// 배포된 것이 최신인지 눈으로 확인할 수 있게 도움말 아래와 콘솔에 찍는다.
+export const APP_VERSION = '2026-09-15.12';

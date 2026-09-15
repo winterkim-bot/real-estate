@@ -3,6 +3,7 @@ import { DongIndex } from './data.js';
 import { MapView } from './mapview.js';
 import { UI } from './ui.js';
 import { $ } from './util.js';
+import { APP_VERSION } from './config.js';
 
 async function main() {
   const loader = $('#loader');
@@ -79,7 +80,7 @@ async function main() {
     ui.toast('브라우저 저장소를 쓸 수 없어 기록이 유지되지 않을 수 있어요.', 'bad');
   }
 
-  console.info(`행정동 ${dongIndex.size}곳을 불러왔습니다.`);
+  console.info(`임장노트 ${APP_VERSION} · 행정동 ${dongIndex.size}곳을 불러왔습니다.`);
 }
 
 /**
