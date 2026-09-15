@@ -17,6 +17,7 @@ const BASE_LAYERS = {
 
 const LABEL_MIN_ZOOM = 11;   // 이보다 멀리서 보면 동 이름표를 숨긴다
 const CX_LABEL_MIN_ZOOM = 14;
+const CX_HALO_RADIUS_M = 130;   // 단지 표시 반경 (실제 경계가 아니라 눈에 띄게 하려는 용도)
 
 /** Leaflet 지도와 모든 레이어를 관리한다. UI 로직은 담지 않고 콜백으로 넘긴다. */
 export class MapView {
@@ -206,10 +207,10 @@ export class MapView {
     }
 
     const showCx = this.map.getZoom() >= CX_LABEL_MIN_ZOOM;
-    this.complexLayer.eachLayer((layer) => {
-      const element = layer.getElement?.();
+    for (const marker of this.complexMarkers.values()) {
+      const element = marker.getElement?.();
       if (element) element.classList.toggle('hide-label', !showCx);
-    });
+    }
   }
 
   // ── 단지 핀 ───────────────────────────────────────────────
@@ -221,6 +222,20 @@ export class MapView {
       if (!this.filter(cx)) continue;
       const color = statusColor(cx.status);
       const selected = cx.id === this.selectedComplexId;
+
+      // 단지 주변을 옅게 칠해 지도에서 바로 눈에 띄게 한다.
+      // 실제 단지 경계가 아니라 '이 근처'라는 표시다.
+      L.circle([cx.lat, cx.lng], {
+        radius: CX_HALO_RADIUS_M,
+        color,
+        weight: selected ? 2.5 : 1.5,
+        opacity: 0.85,
+        dashArray: selected ? null : '5 4',
+        fillColor: color,
+        fillOpacity: selected ? 0.28 : 0.18,
+        interactive: false,
+      }).addTo(this.complexLayer);
+
       const marker = L.marker([cx.lat, cx.lng], {
         icon: L.divIcon({
           className: 'complex-icon',

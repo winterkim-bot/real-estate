@@ -482,16 +482,18 @@ export class UI {
         ]),
         el('button.mini-btn.is-primary', {
           onclick: () => {
-            const cx = this.store.addComplex({
+            const { cx, markedDong } = this.#createComplex({
               name: place.name,
               lat: place.lat,
               lng: place.lng,
               dongCode: dong.code,
               status: 'interest',
-            });
+            }, dong);
             this.pendingPlace = null;
             this.selectComplex(cx, { zoom: true });
-            this.toast(`${cx.name}을(를) 단지로 추가했어요.`, 'good');
+            this.toast(markedDong
+              ? `${cx.name} 추가 · ${markedDong.name}도 관심으로 표시했어요.`
+              : `${cx.name}을(를) 단지로 추가했어요.`, 'good');
           },
         }, '단지로 추가'),
         el('button.icon-btn.place-dismiss', {
@@ -579,7 +581,7 @@ export class UI {
       for (const item of fresh) {
         list.append(el('button.osm-item', {
           onclick: (ev) => {
-            const cx = this.store.addComplex({
+            const { cx } = this.#createComplex({
               name: item.name,
               lat: item.lat,
               lng: item.lng,
@@ -587,7 +589,7 @@ export class UI {
               builtYear: item.builtYear,
               households: item.households,
               status: 'interest',
-            });
+            }, dong);
             ev.currentTarget.classList.add('is-added');
             ev.currentTarget.disabled = true;
             this.toast(`${cx.name}을(를) 추가했어요.`, 'good');
@@ -705,20 +707,32 @@ export class UI {
       this.toast('서울·경기·인천 안에서 찍어 주세요.');
       return;
     }
-    const cx = this.store.addComplex({
+    const { cx, markedDong } = this.#createComplex({
       name: `${dong.name} 단지`,
       lat,
       lng,
       dongCode: dong.code,
       status: 'interest',
-    });
+    }, dong);
     this.toggleAddMode(false);
     this.selectComplex(cx);
+    if (markedDong) this.toast(`${markedDong.name}도 관심으로 표시했어요.`);
     setTimeout(() => {
       const input = $('.title-input', this.nodes.viewDetail);
       input?.focus();
       input?.select();
     }, 60);
+  }
+
+  /**
+   * 단지를 등록한다. 그 동에 아직 아무 기록이 없으면 '관심'으로 함께 표시한다.
+   * 단지만 찍어 두면 지도에 작은 핀 하나뿐이라, 정작 어느 동네를 보고 있는지 드러나지 않는다.
+   */
+  #createComplex(fields, dong) {
+    const markDong = Boolean(dong) && !this.store.hasDong(dong.code);
+    const cx = this.store.addComplex(fields);
+    if (markDong) this.store.updateDong(dong.code, { status: 'interest' });
+    return { cx, markedDong: markDong ? dong : null };
   }
 
   // ─────────────────────────────────────────── 목록 & 통계
