@@ -213,7 +213,7 @@ export class UI {
       const query = input.value;
       this.nodes.searchClear.hidden = !query;
       if (!query.trim()) {
-        results.hidden = true;
+        this.#setSearching(false);
         this.placeState = { query: '', status: 'idle', items: [] };
         this.placeSearch?.cancel();
         return;
@@ -252,7 +252,7 @@ export class UI {
       if (input.value.trim()) run();
     });
     input.addEventListener('keydown', (ev) => {
-      if (ev.key === 'Escape') { input.value = ''; results.hidden = true; input.blur(); }
+      if (ev.key === 'Escape') { input.value = ''; this.#setSearching(false); input.blur(); }
       if (ev.key === 'Enter') {
         const first = results.querySelector('.search-row');
         first?.click();
@@ -261,11 +261,11 @@ export class UI {
     this.nodes.searchClear.addEventListener('click', () => {
       input.value = '';
       this.nodes.searchClear.hidden = true;
-      results.hidden = true;
+      this.#setSearching(false);
       input.focus();
     });
     document.addEventListener('click', (ev) => {
-      if (!ev.target.closest('.search-wrap')) results.hidden = true;
+      if (!ev.target.closest('.search-wrap')) this.#setSearching(false);
     });
   }
 
@@ -295,7 +295,14 @@ export class UI {
     if (!results.childElementCount) {
       results.append(el('li.search-empty', { text: '검색 결과가 없어요' }));
     }
-    results.hidden = false;
+    this.#setSearching(true);
+  }
+
+  /** 모바일에서는 검색 중일 때 바텀시트 전체를 결과 목록으로 쓴다. */
+  #setSearching(on) {
+    this.nodes.searchResults.hidden = !on;
+    document.body.classList.toggle('is-searching', on);
+    if (on) this.expandSheet();
   }
 
   #searchRow(hit) {
@@ -303,7 +310,7 @@ export class UI {
     return el('li.search-row', {
       role: 'option',
       onclick: () => {
-        this.nodes.searchResults.hidden = true;
+        this.#setSearching(false);
         this.nodes.searchInput.blur();
         if (hit.kind === 'dong') this.selectDong(hit.dong, { zoom: true });
         else this.selectComplex(hit.complex, { zoom: true });
@@ -322,7 +329,7 @@ export class UI {
     return el('li.search-row.place-row', {
       role: 'option',
       onclick: () => {
-        this.nodes.searchResults.hidden = true;
+        this.#setSearching(false);
         this.nodes.searchInput.blur();
         this.#goToPlace(place);
       },

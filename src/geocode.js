@@ -14,7 +14,9 @@ export async function searchPlaces(query, { signal } = {}) {
   const params = new URLSearchParams({
     q: query,
     format: 'jsonv2',
-    limit: '6',
+    // 상점 이름에 지구명이 섞여 들어오므로 넉넉히 받아서 걸러낸다.
+    limit: '25',
+    addressdetails: '1',
     countrycodes: 'kr',
     viewbox: VIEWBOX,
     bounded: '1',
@@ -28,7 +30,28 @@ export async function searchPlaces(query, { signal } = {}) {
   if (!res.ok) throw new Error(`장소 검색 실패 (${res.status})`);
 
   const json = await res.json();
-  return json.map(toPlace).filter(Boolean);
+  const all = json.map(toPlace).filter(Boolean);
+
+  // 동네·단지처럼 '장소'인 것만 남긴다. 다 걸러지면 원본 순서대로 조금만 보여준다.
+  const places = all.filter(isPlaceLike);
+  return (places.length ? places : all).slice(0, 6);
+}
+
+// 지역·주거지 성격의 결과만 통과시킨다.
+const PLACE_CATEGORIES = new Set(['place', 'landuse', 'boundary', 'building', 'residential']);
+const PLACE_TYPES = new Set([
+  'neighbourhood', 'suburb', 'quarter', 'city_block', 'residential', 'apartments',
+  'town', 'village', 'hamlet', 'allotments', 'construction', 'house', 'yes',
+]);
+// 가게·식당·학원 같은 건 지구 이름을 달고 있어도 뺀다.
+const SHOP_CATEGORIES = new Set([
+  'shop', 'amenity', 'office', 'craft', 'tourism', 'healthcare', 'leisure',
+  'highway', 'railway', 'man_made', 'emergency', 'club',
+]);
+
+function isPlaceLike(place) {
+  if (SHOP_CATEGORIES.has(place.category)) return false;
+  return PLACE_CATEGORIES.has(place.category) || PLACE_TYPES.has(place.kind);
 }
 
 function toPlace(item) {
@@ -38,8 +61,22 @@ function toPlace(item) {
 
   const parts = String(item.display_name ?? '').split(',').map((p) => p.trim());
   const name = item.name?.trim() || parts[0] || '이름 없음';
-  // "은평뉴타운, 진관동, 은평구, 서울특별시, …" → "진관동 · 은평구"
-  const detail = parts.slice(1, 3).filter(Boolean).join(' · ');
 
-  return { name, detail, lat, lng, kind: item.type ?? '' };
+  // display_name 앞머리는 "19, 진관2로"처럼 번지수라 쓸모가 없다. 주소 항목에서 직접 뽑는다.
+  const address = item.address ?? {};
+  const region = address.borough || address.city_district || address.county
+    || address.city || address.province || address.state || '';
+  const local = address.suburb || address.neighbourhood || address.quarter
+    || address.town || address.village || '';
+  const detail = [region, local].filter(Boolean).join(' · ')
+    || parts.slice(1, 3).filter(Boolean).join(' · ');
+
+  return {
+    name,
+    detail,
+    lat,
+    lng,
+    kind: item.type ?? '',
+    category: item.category ?? item.class ?? '',
+  };
 }

@@ -45,6 +45,8 @@ async function main() {
   ui = new UI({ dongIndex, store, mapView });
   ui.init();
 
+  trackKeyboardInset();
+
   $('#btn-locate')?.addEventListener('click', () => {
     mapView.locateMe((message) => ui.toast(message, 'bad'));
   });
@@ -61,6 +63,23 @@ async function main() {
   }
 
   console.info(`행정동 ${dongIndex.size}곳을 불러왔습니다.`);
+}
+
+/**
+ * 화면 아래쪽에서 키보드가 잡아먹는 높이를 --kb 로 알려 준다.
+ * position:fixed 인 바텀시트는 키보드가 올라와도 그대로 화면 밑에 붙어 있어서,
+ * 이 값만큼 위로 올려 주지 않으면 검색 결과가 키보드에 가린다.
+ */
+function trackKeyboardInset() {
+  const viewport = window.visualViewport;
+  if (!viewport) return;
+  const sync = () => {
+    const inset = Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop);
+    document.documentElement.style.setProperty('--kb', `${Math.round(inset)}px`);
+  };
+  viewport.addEventListener('resize', sync);
+  viewport.addEventListener('scroll', sync);
+  sync();
 }
 
 main().catch((err) => {

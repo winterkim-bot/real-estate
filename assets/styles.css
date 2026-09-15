@@ -101,6 +101,7 @@ body.sidebar-collapsed .sidebar { display: none; }
 
 /* ── 검색 ─────────────────────────────────────────────────── */
 .search-wrap { position: relative; }
+.search-box { position: relative; }
 
 #search-input {
   width: 100%;
@@ -660,16 +661,54 @@ body.sidebar-collapsed .map-tools { top: 54px; }
     position: fixed;
     left: 0; right: 0; bottom: 0;
     width: auto;
-    height: 66dvh;
+    /* 키보드가 올라오면 남은 화면 안에 들어오도록 높이를 줄인다. */
+    height: min(66dvh, calc(100dvh - var(--kb, 0px) - 16px));
     border-right: 0;
     border-top: 1px solid var(--line);
     border-radius: 18px 18px 0 0;
     box-shadow: var(--shadow-lg);
     transform: translateY(calc(100% - 128px - env(safe-area-inset-bottom, 0px)));
-    transition: transform .28s cubic-bezier(.32, .72, 0, 1);
+    transition: transform .28s cubic-bezier(.32, .72, 0, 1), height .2s ease;
     padding-bottom: env(safe-area-inset-bottom, 0px);
   }
-  body.sheet-open .sidebar { transform: translateY(0); }
+  /* 키보드 위로 올려 준다. */
+  body.sheet-open .sidebar { transform: translateY(calc(-1 * var(--kb, 0px))); }
+
+  /* 검색 중에는 탭·목록·푸터를 감추고 결과가 시트를 다 쓰게 한다. */
+  body.is-searching .sidebar {
+    height: auto;
+    max-height: min(88dvh, calc(100dvh - var(--kb, 0px) - 16px));
+  }
+  body.is-searching .side-view,
+  body.is-searching .side-foot,
+  body.is-searching .sheet-handle { display: none !important; }
+
+  body.is-searching .side-head {
+    flex: 0 1 auto;
+    min-height: 0;
+    border-bottom: 0;
+    padding-bottom: 0;
+  }
+  body.is-searching .search-wrap {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    flex: 0 1 auto;
+  }
+  body.is-searching .search-results {
+    position: static;
+    flex: 0 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    max-height: none;
+    margin-top: 8px;
+    padding: 0 0 12px;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    background: none;
+  }
+  body.is-searching .search-row { padding: 12px 10px; }
 
   .sheet-handle {
     display: block;
