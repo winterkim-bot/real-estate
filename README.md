@@ -16,26 +16,46 @@
 
 대상 지역은 **서울 426개 · 경기 601개 · 인천 156개 행정동**(총 1,183개)입니다.
 
-## 실행
+## 배포 (Vercel)
 
-이 앱은 빌드가 필요 없는 정적 웹사이트입니다. 다만 경계 데이터를 `fetch`로 읽기 때문에
-파일을 더블클릭해서 여는 방식(`file://`)으로는 동작하지 않습니다. 간단한 로컬 서버를 띄워 주세요.
+빌드가 없는 정적 사이트라 따로 설정할 게 없습니다. `vercel.json`에 프레임워크 없음과
+캐시 헤더가 이미 잡혀 있습니다.
+
+1. <https://vercel.com/new> 접속 → GitHub 계정 연결
+2. **Import Git Repository**에서 `winterkim-bot/real-estate` 선택
+3. **Framework Preset**은 `Other`, **Build Command**는 비워 둔 채로 **Deploy**
+
+1~2분 뒤 `https://<프로젝트이름>.vercel.app` 주소가 나옵니다.
+이후 이 브랜치에 푸시하면 자동으로 다시 배포됩니다.
+
+명령줄로 하려면 저장소를 받은 뒤:
 
 ```bash
-git clone <이 저장소>
-cd real-estate
-python3 -m http.server 8080
+npx vercel --prod
 ```
 
-브라우저에서 <http://localhost:8080> 으로 접속합니다.
+> 전체 용량이 3MB 남짓이라 무료(Hobby) 플랜으로 충분합니다.
 
-> 인터넷 연결이 필요합니다 — 지도 배경 타일을 OpenStreetMap/CARTO에서 받아오기 때문입니다.
+<details>
+<summary>GitHub Pages로 올리는 방법</summary>
+
+저장소 Settings → Pages → **Deploy from a branch** → 이 브랜치의 `/ (root)`를 지정합니다.
+루트의 `.nojekyll`은 이때 필요합니다 — 이게 없으면 Jekyll 빌드가 `vendor/` 아래 파일을
+빼먹어 지도 라이브러리를 못 읽습니다.
+
+</details>
+
+## 고칠 때 (로컬)
+
+경계 데이터를 `fetch`로 읽기 때문에 파일을 더블클릭해서 여는 방식(`file://`)으로는
+동작하지 않습니다. 간단한 로컬 서버를 띄워 주세요.
+
+```bash
+python3 -m http.server 8080   # → http://localhost:8080
+```
+
+> 지도 배경 타일을 OpenStreetMap/CARTO에서 받아오므로 인터넷 연결이 필요합니다.
 > 지도 라이브러리(Leaflet)와 경계 데이터는 저장소 안에 들어 있습니다.
-
-### GitHub Pages로 올리기
-
-저장소 Settings → Pages에서 이 브랜치의 루트(`/`)를 배포 대상으로 지정하면 그대로 동작합니다.
-별도 빌드 설정은 없습니다.
 
 ## 기록은 어디에 저장되나
 
@@ -65,6 +85,7 @@ src/
   overpass.js           OpenStreetMap 단지 조회 (선택 기능)
   util.js               DOM·한글·포맷 도우미
 data/dong-*.json        서울·경기·인천 행정동 경계 (총 2.7MB)
+vercel.json             정적 배포 설정 (캐시 헤더)
 scripts/build_data.py   경계 데이터 재생성
 scripts/check-syntax.mjs 모듈 문법 검사
 vendor/                 Leaflet 1.9.4 (BSD-2-Clause)
