@@ -6,14 +6,31 @@ const BASE_LAYERS = {
   '기본': {
     url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-    maxZoom: 19,
   },
   '위성': {
     url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
     attribution: 'Imagery &copy; Esri, Maxar, Earthstar Geographics',
-    maxZoom: 19,
   },
 };
+
+const MAX_TILE_ZOOM = 19;   // 두 제공처 모두 z19까지 있다
+
+/**
+ * 고해상도 화면(아이폰 등)에서는 한 단계 높은 줌의 타일을 받아 절반 크기로 그린다.
+ * 같은 화면을 두 배 밀도로 채우게 되므로 글자와 선이 또렷해진다.
+ * 타일 제공처가 @2x 이미지를 주지 않아도 되는 방식이라 키 없는 서버에도 그대로 쓸 수 있다.
+ */
+function tileOptions(cfg) {
+  const retina = L.Browser.retina;
+  return {
+    attribution: cfg.attribution,
+    maxZoom: MAX_TILE_ZOOM,
+    // 실제로 받아올 타일의 줌. 레티나에선 여기에 zoomOffset이 더해져 z19가 된다.
+    maxNativeZoom: retina ? MAX_TILE_ZOOM - 1 : MAX_TILE_ZOOM,
+    zoomOffset: retina ? 1 : 0,
+    tileSize: retina ? 128 : 256,
+  };
+}
 
 const LABEL_MIN_ZOOM = 11;   // 이보다 멀리서 보면 동 이름표를 숨긴다
 const CX_LABEL_MIN_ZOOM = 14;
@@ -46,7 +63,7 @@ export class MapView {
 
     const layers = {};
     Object.entries(BASE_LAYERS).forEach(([name, cfg], i) => {
-      const layer = L.tileLayer(cfg.url, { attribution: cfg.attribution, maxZoom: cfg.maxZoom });
+      const layer = L.tileLayer(cfg.url, tileOptions(cfg));
       layers[name] = layer;
       if (i === 0) layer.addTo(this.map);
     });
