@@ -1,0 +1,38 @@
+# 기본 브랜치에 푸시하면 GitHub Pages로 그대로 배포한다. 빌드 단계가 없는 정적 사이트다.
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [claude/seoul-realestate-map-41iv8i]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# 배포는 한 번에 하나만. 진행 중인 배포를 취소하지는 않는다.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/configure-pages@v5
+        with:
+          # 저장소 설정에서 Pages를 켜두지 않았어도 여기서 켠다.
+          enablement: true
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: .
+
+      - id: deployment
+        uses: actions/deploy-pages@v4
