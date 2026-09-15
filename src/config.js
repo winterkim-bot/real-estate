@@ -29,7 +29,7 @@ export const MAP_DEFAULTS = {
   center: [37.5665, 126.978],
   zoom: 11,
   minZoom: 8,
-  maxZoom: 19,
+  // 최대 배율은 배경 지도마다 다르다 (mapview.js의 nativeMax 참고)
 };
 
 export const STORAGE_KEY = 'imjang-note:v1';

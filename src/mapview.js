@@ -5,6 +5,7 @@ const OSM_ATTR = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenS
 const STADIA_ATTR = '&copy; <a href="https://stadiamaps.com/">Stadia Maps</a> '
   + '&copy; <a href="https://openmaptiles.org/">OpenMapTiles</a> ' + OSM_ATTR;
 
+// 레이어가 '보이는' 한계. 실제로 얼마나 확대할 수 있는지는 배경마다 nativeMax로 따로 정한다.
 export const MAP_MAX_ZOOM = 20;
 
 /**
@@ -131,11 +132,24 @@ export class MapView {
     let chosen = this.store.setting('baseLayer', FALLBACK_LAYER);
     if (!layers[chosen]) chosen = FALLBACK_LAYER;
     layers[chosen].addTo(this.map);
+    this.#limitZoomTo(layers[chosen]);
 
     L.control.layers(layers, null, { position: 'topright' }).addTo(this.map);
-    this.map.on('baselayerchange', (ev) => this.store.setSetting('baseLayer', ev.name));
+    this.map.on('baselayerchange', (ev) => {
+      this.store.setSetting('baseLayer', ev.name);
+      this.#limitZoomTo(ev.layer);
+    });
 
     this.#watchTileFailures(layers);
+  }
+
+  /**
+   * 배경마다 타일이 있는 최대 줌이 다르다(OpenStreetMap·위성은 19, Stadia는 20).
+   * 그 너머로 확대하면 없는 타일을 억지로 늘려 그려서 지도가 뭉개진다. 아예 막는다.
+   */
+  #limitZoomTo(layer) {
+    const nativeMax = layer?.config?.nativeMax ?? MAP_MAX_ZOOM;
+    if (this.map.getMaxZoom() !== nativeMax) this.map.setMaxZoom(nativeMax);
   }
 
   /**
@@ -153,6 +167,7 @@ export class MapView {
         failures = 0;
         this.map.removeLayer(layer);
         fallback.addTo(this.map);
+        this.#limitZoomTo(fallback);
         this.store.setSetting('baseLayer', FALLBACK_LAYER);
         this.onTileProblem?.(layer.config.name);
       });
